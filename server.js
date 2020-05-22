@@ -6,7 +6,7 @@ const shortid = require('shortid')
 const cors = require('cors')
 
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track' )
+mongoose.connect("mongodb+srv://dj:12345@freecamp-ok3th.mongodb.net/test?retryWrites=true&w=majority", { useNewUrlParser: true, useUnifiedTopology: true }); 
 
 app.use(cors())
 
@@ -19,89 +19,88 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
 
+
+
 const users = [];
 const exercises = [];
-const getUsernameById = (id) => users.find(user => user._id === id).username;
-const getExercisesFromUsersWithId = (id) => exercises.filter(exe => exe._id === id);
 
-console.log('here')
+const getUsernameById = (id) => users.find(user => user._id === id).username;
+const getExercisesFromUserWithId = (id) => exercises.filter(exe => exe._id === id)
 
 // 1. I can create a user by posting form data username to /api/exercise/new-user 
 // and returned will be an object with username and _id.
+
 app.post('/api/exercise/new-user', (req, res) => {
-  const { username } = req.body;
+    const {username} = req.body;
   
-  const newUser = {
-    username,
-    _id: shortid.generate()
-  }
-  
-  users.push(newUser);
+    const newUser = {
+      username,
+      _id: shortid.generate()
+    }
     
-  return res.json(newUser);
-});
-
-// 2. I can get an array of all users by getting api/exercise/users
-// with the same info as when creating a user.
-app.get('/api/exercise/users', (req, res) => { 
-  return res.json(users);
-});
-
-// 3. I can add an exercise to any user by posting form data 
-// userId(_id), description, duration, and optionally date to /api/exercise/add.
-// If no date supplied it will use current date. Returned will be the user object with also with the exercise fields added.
-app.post('/api/exercise/add', (req, res) => {
-  const { userId, description, duration, date } = req.body;
+    users.push(newUser)
   
-  const dateObj = date === '' ? new Date() : new Date(date);
+  return res.json(newUser)
+});
+
+// 2. I can get an array of all users by getting api/exercise/users 
+// with the same info as when creating a user.
+app.get('/api/exercise/users', (req, res) => {
+    return res.json(users);
+});
+
+// 3. I can add an exercise to any user by posting form data userId(_id), description, duration, 
+// and optionally date to /api/exercise/add. If no date supplied it will use current date. 
+// Returned will be the user object with also with the exercise fields added.
+app.post('/api/exercise/add', (req, res) => {
+  const {userId, description, duration, date} = req.body;
+  const dateObj = date === '' ? new Date().toDateString() : new Date(date).toDateString();
   
   const newExercise = {
-    _id: userId,   
-    description, 
-    duration: +duration, 
-    date: dateObj.toString()
+    username: getUsernameById(userId),
+    description,
+    duration: parseInt(duration),
+    _id: userId,
+    date: dateObj
   }
   
   exercises.push(newExercise);
-  
-  res.json(newExercise);
+  res.json(newExercise);  
 });
 
-// 4. I can retrieve a full exercise log of any user by getting /api/exercise/log with a parameter of userId(_id).
+// 4. I can retrieve a full exercise log of any user by getting /api/exercise/log with a parameter of userId(_id). 
 // Return will be the user object with added array log and count (total exercise count).
 
-// 5. I can retrieve part of the log of any user by also passing along optional parameters
-// of from & to or limit.(Date format yyyy-mm-dd, limit = int)
+// 5. I can retrieve part of the log of any user by also passing along optional parameters of from & to or limit. 
+// (Date format yyyy-mm-dd, limit = int)
 app.get('/api/exercise/log', (req, res) => {
-  const { userId, from, to, limit } = req.query;
+  const {userId, from, to, limit} = req.query;
   
-  let log = getExercisesFromUsersWithId(userId);
+  let temp=getExercisesFromUserWithId(userId);
   
-  // We are assuming the data that are coming from the form is correct
-  
-  if(from) {
-    const fromDate = new Date(from);
-    log = log.filter(exe => new Date(exe.date) > fromDate);
+  if(limit){
+    temp=temp.slice(0,limit);
   }
   
-  if(to) {
-    const toDate = new Date(to);
-    log = log.filter(exe => new Date(exe.date) > toDate);
+  if(from){
+    const fromDate= new Date(from)
+    temp = temp.filter(exe => new Date(exe.date) > fromDate);
   }
   
-  if(limit) {
-    log = log.slice(0, +limit);
+  if(to){
+    const toDate = new Date(to)
+    temp = temp.filter(exe => new Date(exe.date) < toDate);
   }
   
-  res.json({
-    _id: userId,
-    username: getUsernameById(userId),
-    count: log.length,
-    log
-  });
+  const log = {
+    _id:userId,
+    username:getUsernameById(userId),
+    count:parseFloat(temp.length),
+    log:temp
+  }
+  
+  res.json(log)
 });
-
-
 
 // Not found middleware
 app.use((req, res, next) => {
@@ -130,5 +129,3 @@ app.use((err, req, res, next) => {
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 })
-
-
